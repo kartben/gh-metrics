@@ -14,7 +14,7 @@ import (
 func main() {
 	if len(os.Args) < 6 {
 		fmt.Println("usage : ./gh-metrics [token] [year] [month idx] [owner] [repo list]")
-		fmt.Println(" ex: for March 2016 ./gh-metrics xxxxxxxxxx eclipse 2016 3 leshan leshan.osgi")
+		fmt.Println(" ex: for March 2016 ./gh-metrics xxxxxxxxxx 2016 3 eclipse leshan leshan.osgi")
 		os.Exit(-1)
 	}
 

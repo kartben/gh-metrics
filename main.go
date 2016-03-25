@@ -12,9 +12,9 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 5 {
-		fmt.Println("usage : ./gh-metrics [token] [month idx] [owner] [repo list]")
-		fmt.Println(" ex: for since March  ./gh-metrics xxxxxxxxxx eclipse 3 leshan leshan.osgi")
+	if len(os.Args) < 6 {
+		fmt.Println("usage : ./gh-metrics [token] [year] [month idx] [owner] [repo list]")
+		fmt.Println(" ex: for March 2016 ./gh-metrics xxxxxxxxxx eclipse 2016 3 leshan leshan.osgi")
 		os.Exit(-1)
 	}
 
@@ -25,8 +25,12 @@ func main() {
 
 	client := github.NewClient(tc)
 
-	today := time.Now()
-	sMonth, err := strconv.Atoi(os.Args[2])
+	year, err := strconv.Atoi(os.Args[2])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sMonth, err := strconv.Atoi(os.Args[3])
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -36,22 +40,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	from := time.Date(today.Year(), time.Month(sMonth), 1, 0, 0, 0, 0, loc)
+	from := time.Date(year, time.Month(sMonth), 1, 0, 0, 0, 0, loc)
 	fmt.Println("From:", from)
 
-	owner := os.Args[3]
+	to := time.Date(year, time.Month(sMonth)+1, 1, 0, 0, 0, 0, loc)
+	fmt.Println("To:", to)
+
+	owner := os.Args[4]
 	fmt.Println("owner:", owner)
 
-	for i := 4; i < len(os.Args); i++ {
+	for i := 5; i < len(os.Args); i++ {
 		fmt.Println("repo", os.Args[i])
-		issuesCount, prCount, issuesCommentCount, prCommentCount := getStats(owner, os.Args[i], client, from)
+		issuesCount, prCount, issuesCommentCount, prCommentCount := getStats(owner, os.Args[i], client, from, to)
 		fmt.Println("issues", issuesCount, "PR", prCount, "issue comments", issuesCommentCount, "pr comments", prCommentCount, "\n")
 
 	}
 
 }
 
-func getStats(owner string, repo string, client *github.Client, from time.Time) (int, int, int, int) {
+func getStats(owner string, repo string, client *github.Client, from time.Time, to time.Time) (int, int, int, int) {
 
 	prCount := 0
 	issuesCount := 0
@@ -70,6 +77,10 @@ func getStats(owner string, repo string, client *github.Client, from time.Time) 
 		}
 		//fmt.Println("count:", len(issues))
 		for _, v := range issues {
+			// skip issues not in the range
+			if v.CreatedAt.After(to) {
+				continue
+			}
 			//fmt.Println(*v.Title, v.PullRequestLinks != nil)
 			if v.PullRequestLinks != nil {
 				prCount++
@@ -85,12 +96,16 @@ func getStats(owner string, repo string, client *github.Client, from time.Time) 
 					log.Fatal(err)
 				}
 
-				if v.PullRequestLinks != nil {
-					prCommentCount += len(comments)
-				} else {
-					issuesCommentCount += len(comments)
-				}
+				for _, comm := range comments {
+					if to.After(*comm.CreatedAt) {
+						if v.PullRequestLinks != nil {
+							prCommentCount++
+						} else {
+							issuesCommentCount++
+						}
 
+					}
+				}
 				if rc.NextPage == 0 {
 					break
 				}

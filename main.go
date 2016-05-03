@@ -11,6 +11,9 @@ import (
 	"golang.org/x/oauth2"
 )
 
+import s "strings"
+
+
 func main() {
 	if len(os.Args) < 6 {
 		fmt.Println("usage : ./gh-metrics [token] [year] [month idx] [owner] [repo list]")
@@ -47,12 +50,32 @@ func main() {
 	fmt.Println("To:", to)
 
 	owner := os.Args[4]
-	fmt.Println("owner:", owner)
+//	fmt.Println("owner:", owner)
+
+	fmt.Println("project", "\t",
+				"repository", "\t",
+				"issues", "\t",
+				"PR", "\t",
+				"issuesComments", "\t",
+				"PRComments")
 
 	for i := 5; i < len(os.Args); i++ {
-		fmt.Println("repo", os.Args[i])
-		issuesCount, prCount, issuesCommentCount, prCommentCount := getStats(owner, os.Args[i], client, from, to)
-		fmt.Println("issues", issuesCount, "PR", prCount, "issue comments", issuesCommentCount, "pr comments", prCommentCount, "\n")
+		repo := os.Args[i]
+		project := repo
+		if s.Contains(os.Args[i], ":") {
+			arr := s.Split(os.Args[i], ":")
+			project =  arr[0]
+			repo = arr[1]
+		}
+
+		issuesCount, prCount, issuesCommentCount, prCommentCount := getStats(owner, repo, client, from, to)
+		fmt.Println(
+			project, "\t",
+			repo, "\t",
+			issuesCount, "\t",
+			prCount, "\t",
+			issuesCommentCount, "\t",
+			prCommentCount)
 
 	}
 

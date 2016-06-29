@@ -13,7 +13,6 @@ import (
 
 import s "strings"
 
-
 func main() {
 	if len(os.Args) < 6 {
 		fmt.Println("usage : ./gh-metrics [token] [year] [month idx] [owner] [repo list]")
@@ -50,30 +49,34 @@ func main() {
 	fmt.Println("To:", to)
 
 	owner := os.Args[4]
-//	fmt.Println("owner:", owner)
+	//	fmt.Println("owner:", owner)
 
 	fmt.Println("project", "\t",
-				"repository", "\t",
-				"issues", "\t",
-				"PR", "\t",
-				"issuesComments", "\t",
-				"PRComments")
+		"repository", "\t",
+		"issues opened", "\t",
+		"issues closed", "\t",
+		"PR opened", "\t",
+		"PR closed", "\t",
+		"issuesComments", "\t",
+		"PRComments")
 
 	for i := 5; i < len(os.Args); i++ {
 		repo := os.Args[i]
 		project := repo
 		if s.Contains(os.Args[i], ":") {
 			arr := s.Split(os.Args[i], ":")
-			project =  arr[0]
+			project = arr[0]
 			repo = arr[1]
 		}
 
-		issuesCount, prCount, issuesCommentCount, prCommentCount := getStats(owner, repo, client, from, to)
+		issuesOpenedCount, issuesClosedCount, prOpenedCount, prClosedCount, issuesCommentCount, prCommentCount := getStats(owner, repo, client, from, to)
 		fmt.Println(
 			project, "\t",
 			repo, "\t",
-			issuesCount, "\t",
-			prCount, "\t",
+			issuesOpenedCount, "\t",
+			issuesClosedCount, "\t",
+			prOpenedCount, "\t",
+			prClosedCount, "\t",
 			issuesCommentCount, "\t",
 			prCommentCount)
 
@@ -81,12 +84,14 @@ func main() {
 
 }
 
-func getStats(owner string, repo string, client *github.Client, from time.Time, to time.Time) (int, int, int, int) {
+func getStats(owner string, repo string, client *github.Client, from time.Time, to time.Time) (int, int, int, int, int, int) {
 
-	prCount := 0
-	issuesCount := 0
+	prOpenedCount := 0
+	issuesOpenedCount := 0
 	prCommentCount := 0
 	issuesCommentCount := 0
+	prClosedCount := 0
+	issuesClosedCount := 0
 
 	opt := &github.IssueListByRepoOptions{
 		ListOptions: github.ListOptions{PerPage: 100},
@@ -104,11 +109,31 @@ func getStats(owner string, repo string, client *github.Client, from time.Time, 
 			if v.CreatedAt.After(to) {
 				continue
 			}
+
 			//fmt.Println(*v.Title, v.PullRequestLinks != nil)
-			if v.PullRequestLinks != nil {
-				prCount++
-			} else {
-				issuesCount++
+
+			if v.CreatedAt.After(from) {
+				// the issue/PR was *opened* during the period
+
+				//	fmt.Println("created at: ", v.CreatedAt)
+
+				if v.PullRequestLinks != nil {
+					prOpenedCount++
+				} else {
+					issuesOpenedCount++
+				}
+			}
+
+			if v.ClosedAt != nil && v.ClosedAt.After(from) && v.ClosedAt.Before(to) {
+				// the issue/PR was *closed* during the period
+
+				//	fmt.Println("closed at: ", v.ClosedAt)
+
+				if v.PullRequestLinks != nil {
+					prClosedCount++
+				} else {
+					issuesClosedCount++
+				}
 			}
 
 			optComments := &github.IssueListCommentsOptions{
@@ -143,5 +168,5 @@ func getStats(owner string, repo string, client *github.Client, from time.Time, 
 		opt.ListOptions.Page = r.NextPage
 	}
 
-	return issuesCount, prCount, issuesCommentCount, prCommentCount
+	return issuesOpenedCount, issuesClosedCount, prOpenedCount, prClosedCount, issuesCommentCount, prCommentCount
 }
